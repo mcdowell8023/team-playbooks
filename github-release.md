@@ -188,6 +188,19 @@ gh api /user/emails --jq '.[].email'
 
 > **为什么放最前面：** 2026-03-19 事件——敏感信息差点入库。安全问题一旦推上 public 仓库，撤回也来不及（git history 永留痕）。
 
+> **⚠️ 教程类文档误报处理：** 如果仓库本身包含命令示例（如 `ghp_xxx`、`sk-xxx` 占位符），安全扫描会大量误报。判断标准：**看上下文**——代码块内的占位符（`ghp_xxx`）不是问题，41 字节的真实 token 值才是。可用以下方法减少噪音：
+>
+> ```bash
+> # 方法 1：排除已知的教程文件
+> grep -rn "ghp_" --include="*.md" --exclude="github-release.md" --exclude="DOGFOODING*.md" .
+>
+> # 方法 2：匹配真实长度的 PAT（≥20 字符），过滤短占位符
+> grep -rn "ghp_[A-Za-z0-9]\{20,\}" --include="*.md" .
+>
+> # 方法 3：排除已知占位符
+> grep -rn "ghp_" --include="*.md" . | grep -v "ghp_xxx\|placeholder"
+> ```
+
 **一键扫描脚本：**
 
 ```bash
@@ -199,8 +212,9 @@ echo "=== 敏感信息扫描 ==="
 FOUND=0
 
 echo "--- PAT / Token ---"
+# 注意：教程类仓库会误报，结合上下文判断（代码块内占位符 ≠ 真实泄露）
 if grep -rn "ghp_" --include="*.{md,yaml,json,sh,ts,js,mjs,cjs}" . 2>/dev/null; then
-  echo "⚠️  发现 GitHub PAT！"
+  echo "⚠️  发现 GitHub PAT！（教程类文档请人工确认是否为占位符）"
   FOUND=1
 fi
 
@@ -255,11 +269,40 @@ fi
 grep -rn "ghp_\|sk-\|/home/mcdowell\|192\.168\." --include="*.{md,yaml,json,sh,ts,js}" . 2>/dev/null && echo "⚠️ 发现敏感内容" || echo "✅ 清洁"
 ```
 
+### Step 0.5. 从散落文件初始化仓库（可选）
+
+> **适用场景：** 你只有一堆散落文件（文档、代码），还没有 git 仓库。如果已有 git 仓库，跳过此步直接到 Step 1。
+
+```bash
+# 1. 创建项目目录并复制文件
+mkdir -p ~/path/to/new-repo
+cd ~/path/to/new-repo
+cp /source/path/*.md .  # 复制你的资料
+
+# 2. 初始化 git
+git init
+
+# 3. 确认 git 配置（commit 必需，见 §3.3）
+git config user.name || echo "⚠️ 需设：git config --global user.name 'YourName'"
+git config user.email || echo "⚠️ 需设：git config --global user.email 'you@email.com'"
+
+# 4. 首次提交
+git add .
+git commit -m "initial commit"
+
+# 后续走 Step 1 →
+```
+
+**⚠️ 注意：** `git init` 默认分支名取决于 git 版本（可能是 `master` 或 `main`）。`gh repo create --source=.` 会自动使用当前分支，无需手动改名。
+
 ### Step 1. 本地状态检查
 
 > **目标：** 确认本地代码已达到可发布状态，避免把脏工作区或未验证产物推上 GitHub。
 
 ```bash
+# 0. git 配置确认（新机器/新目录容易漏）
+git config user.name && git config user.email || echo "⚠️ git config 未设，见 §3.3"
+
 git status --short
 git branch --show-current
 git log --oneline -n 5
@@ -493,12 +536,21 @@ git cat-file -t v1.2.0
 
 > **目标：** 在 GitHub Releases 页面生成正式版本页，附上 notes 与 prerelease 状态。
 
+**Release Notes 文件入库（推荐）：**
+
+```bash
+# --notes-file 读的是本地路径，但建议先 commit + push 入库，便于追溯
+git add RELEASE-NOTES-vX.Y.Z.md
+git commit -m "docs: add vX.Y.Z release notes"
+git push origin <branch>
+```
+
 **基础发布：**
 
 ```bash
 gh release create vX.Y.Z \
   --title "vX.Y.Z — <主题>" \
-  --notes-file RELEASE_NOTES.md \
+  --notes-file RELEASE-NOTES-vX.Y.Z.md \
   --prerelease
 # 预期: https://github.com/mcdowell8023/<repo>/releases/tag/vX.Y.Z
 ```
@@ -787,3 +839,4 @@ git push origin main --follow-tags
 ## 修订记录
 
 - 2026-04-26 v1.0 范蠡（流程框架）+ 移公（技术深度）合并定稿
+- 2026-04-26 v1.0.1 鲁班 dogfooding 反馈迭代：补「从零建仓」/ 安全扫描白名单 / git config 前置 / release notes 入库

@@ -32,6 +32,21 @@
 
 欢迎 Issue / PR。新增 Playbook 请套用 `playbook-template.md` 元结构。
 
+## 演进历史
+
+每次重大使用我们都会产出 dogfooding 反馈报告，作为 Playbook 演进的依据：
+
+- [DOGFOODING-v1.0.0.md](./DOGFOODING-v1.0.0.md) — v1.0.0 首次自用反馈（2026-04-26）
+
+## Changelog
+
+详见 [Releases](https://github.com/mcdowell8023/team-playbooks/releases)。
+
+| 版本 | 日期 | 概要 |
+|---|---|---|
+| v1.0.1 | 2026-04-26 | Dogfooding 反馈补丁（github-release.md 4 处优化） |
+| v1.0.0 | 2026-04-26 | 初始 Playbook 集合（5 个 Playbook） |
+
 ## License
 
 MIT
